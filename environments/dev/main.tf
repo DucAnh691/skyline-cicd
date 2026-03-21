@@ -59,3 +59,10 @@ module "jenkins" {
 
   depends_on = [module.vpc]
 }
+
+# 6. Container Registry (ECR) - Nơi chứa Docker Images
+module "ecr" {
+  source        = "../../modules/ecr"
+  project_name  = var.project_name
+  service_names = ["user-service", "order-service", "payment-service"]
+}
