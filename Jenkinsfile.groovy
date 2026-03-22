@@ -63,15 +63,6 @@ pipeline {
                         // Restart deployment để đảm bảo Pod pull image mới nhất (vì dùng tag latest)
                         sh "kubectl rollout restart deployment/${service}"
                     }
-
-                    // 3. Cấu hình Istio Service Mesh (Bước 9)
-                    echo "Applying Istio Configurations..."
-                    // Đảm bảo namespace default được bật injection (Idempotent)
-                    sh "kubectl label namespace default istio-injection=enabled --overwrite"
-                    sh "kubectl apply -f k8s/istio-config.yaml"
-                    
-                    // Restart lại deployment để các Pods nhận Sidecar mới (nếu chưa có)
-                    sh "kubectl rollout restart deployment"
                 }
             }
         }
