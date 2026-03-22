@@ -41,8 +41,9 @@ resource "aws_eks_node_group" "main" {
     min_size     = 1
   }
 
-  # Dùng t3.medium (2 vCPU, 4GB RAM) để Node ổn định, không bị lỗi "failed to join"
-  instance_types = ["t3.small"]
+  # Khuyên dùng: t3.medium (2 vCPU, 4GB RAM) - Đủ chạy Lab, rẻ hơn m7i-flex.large
+  # Nếu muốn mạnh hơn có thể dùng: ["m7i-flex.large"] (2 vCPU, 8GB RAM)
+  instance_types = ["c7i-flex.large"]
 
   remote_access {
     ec2_ssh_key = var.ssh_key_name

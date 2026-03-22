@@ -47,6 +47,9 @@ pipeline {
                 script {
                     // 1. Cập nhật kubeconfig để lấy quyền truy cập Cluster
                     sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}"
+                    
+                    // DEBUG: Liệt kê file để kiểm tra đường dẫn thực tế
+                    sh "ls -la *.yaml"
 
                     // 2. Deploy từng service
                     def services = ['user-service', 'order-service', 'payment-service']
