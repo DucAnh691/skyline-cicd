@@ -78,8 +78,13 @@ pipeline {
                     sh "helm repo update"
                     
                     // Cài Prometheus (Namespace monitoring)
-                    // Tắt Persistent Volume (PV) để tránh lỗi timeout do thiếu EBS CSI Driver (StorageClass)
-                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.persistentVolume.enabled=false --wait --timeout 10m"
+                    // FIX: Uninstall hoàn toàn bản cài đặt cũ để đảm bảo không còn StatefulSet nào giữ cấu hình Storage cũ
+                    // Đây là cách duy nhất xử lý triệt để lỗi "Pending" do xung đột cấu hình ổ cứng
+                    sh "helm uninstall prometheus -n monitoring || true"
+                    sh "kubectl delete pvc --all -n monitoring --ignore-not-found"
+                    
+                    // Cài đặt mới: Tắt PV và giảm request CPU xuống 200m để dễ schedule trên Node 2 vCPU
+                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.persistentVolume.enabled=false --set server.resources.requests.cpu=200m --wait --timeout 10m"
                     
                     // Cài Grafana
                     // Lưu ý: set adminPassword để dễ đăng nhập, tắt persistence
