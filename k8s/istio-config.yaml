@@ -1,3 +1,19 @@
+# --- ISTIO GATEWAY (Cánh cửa duy nhất ra Internet) ---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: skyline-gateway
+spec:
+  selector:
+    istio: ingressgateway # Sử dụng Istio Ingress Controller mặc định
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
 # --- User Service Configuration ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -5,9 +21,16 @@ metadata:
   name: user-service
 spec:
   hosts:
-    - user-service
+    - "*"
+  gateways:
+    - skyline-gateway
   http:
-    - route:
+    - match:
+        - uri:
+            prefix: /user
+      rewrite:
+        uri: /
+      route:
         - destination:
             host: user-service
             subset: v1
@@ -30,9 +53,16 @@ metadata:
   name: order-service
 spec:
   hosts:
-    - order-service
+    - "*"
+  gateways:
+    - skyline-gateway
   http:
-    - route:
+    - match:
+        - uri:
+            prefix: /order
+      rewrite:
+        uri: /
+      route:
         - destination:
             host: order-service
             subset: v1
@@ -55,9 +85,16 @@ metadata:
   name: payment-service
 spec:
   hosts:
-    - payment-service
+    - "*"
+  gateways:
+    - skyline-gateway
   http:
-    - route:
+    - match:
+        - uri:
+            prefix: /payment
+      rewrite:
+        uri: /
+      route:
         - destination:
             host: payment-service
             subset: v1

@@ -1,0 +1,30 @@
+# -- Số lượng bản sao (pod) cho mỗi deployment.
+replicaCount: 1
+
+# -- Cấu hình Docker Image.
+image:
+  # Tên repository trên ECR, Jenkins sẽ ghi đè giá trị này.
+  repository: nginx
+  # Chính sách pull image. 'Always' đảm bảo luôn kéo image mới nhất.
+  pullPolicy: Always
+  # Tag của image, Jenkins sẽ ghi đè bằng Git commit hash.
+  tag: "latest"
+
+# -- Cấu hình Service (kết nối mạng nội bộ).
+service:
+  # 'ClusterIP' là lựa chọn tối ưu khi đã có Istio Ingress Gateway.
+  type: ClusterIP
+  # Port mà các service khác trong cluster sẽ gọi đến.
+  port: 80
+  # Port thực tế của container đang chạy ứng dụng.
+  targetPort: 8080
+
+appName: "myapp"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

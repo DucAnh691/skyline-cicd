@@ -1,7 +1,7 @@
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
   role_arn = var.cluster_role_arn
-  version  = "1.33" # Hoặc version mới nhất bạn muốn
+  version  = "1.30" # Sử dụng phiên bản EKS được hỗ trợ và ổn định
 
   vpc_config {
     subnet_ids = concat(var.public_subnet_ids, var.private_subnet_ids)
@@ -32,7 +32,7 @@ resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-node-group"
   node_role_arn   = var.node_role_arn
-  subnet_ids      = var.public_subnet_ids # Trong LAB dùng public để dễ debug, Prod nên dùng private
+  subnet_ids      = var.private_subnet_ids # PRODUCTION: Luôn dùng Private Subnet
 
   scaling_config {
     # Giữ 1 Node để tiết kiệm vCPU (Tránh lỗi VcpuLimitExceeded của tài khoản Free Tier)
@@ -44,6 +44,9 @@ resource "aws_eks_node_group" "main" {
   # ISTIO REQUIREMENT: Dùng m7i-flex.large (8GB RAM) để đủ bộ nhớ cho Sidecar Proxies
   # c7i-flex.large chỉ có 4GB RAM, rất dễ bị crash khi chạy Istio
   instance_types = ["m7i-flex.large"]
+  
+  # Tăng dung lượng ổ cứng lên 50GB (Mặc định 20GB) để đủ chỗ chạy Alertmanager và lưu Logs
+  disk_size      = 50
 
   remote_access {
     ec2_ssh_key = var.ssh_key_name

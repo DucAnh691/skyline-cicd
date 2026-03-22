@@ -130,9 +130,8 @@ data "aws_ami" "al2023" {
 
 # Sử dụng EC2 Instance thông thường thay vì ASG
 resource "aws_instance" "jenkins_master" {
-  # Cố định AMI ID để không bị thay thế khi có phiên bản mới.
-  # ID này được lấy từ terraform plan của bạn.
-  ami                    = "ami-011d19742f14ff9b8"
+  # Sử dụng AMI động (Amazon Linux 2023) để luôn có bản vá bảo mật mới nhất
+  ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.small"
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[0] # Đặt tại subnet public đầu tiên
@@ -143,6 +142,13 @@ resource "aws_instance" "jenkins_master" {
               #!/bin/bash
               dnf update -y
               hostnamectl set-hostname jenkins-master
+              
+              # Tạo Swap 2GB cho Jenkins Master (Quan trọng cho t3.small)
+              dd if=/dev/zero of=/swapfile bs=1M count=2048
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
               
               # 1. Cài đặt Java 17 (Amazon Corretto)
               dnf install java-17-amazon-corretto-devel -y
@@ -159,6 +165,7 @@ resource "aws_instance" "jenkins_master" {
               dnf install git docker -y
               systemctl enable docker
               systemctl start docker
+              # Thêm user 'jenkins' vào group 'docker' để Jenkins có quyền thực thi lệnh docker
               usermod -aG docker jenkins
               EOF
   )
@@ -259,7 +266,7 @@ resource "aws_launch_template" "jenkins_agent_lt" {
 
 resource "aws_autoscaling_group" "jenkins_agent_asg" {
   name                = "${var.project_name}-jenkins-agent-asg"
-  min_size            = 1
+  min_size            = 0 # Tối ưu chi phí: Cho phép scale-in về 0 khi không cần build
   max_size            = 5
   desired_capacity    = 2
   vpc_zone_identifier = var.public_subnet_ids
