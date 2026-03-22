@@ -8,7 +8,7 @@ pipeline {
         // Cấu hình thông tin AWS
         AWS_ACCOUNT_ID = '427077356037'
         AWS_REGION     = 'ap-southeast-1'
-        CLUSTER_NAME   = 'skyline-cicd-eks' // Tên EKS Cluster (khớp với Terraform)
+        CLUSTER_NAME   = 'sky-line-cicd-eks' // Tên EKS Cluster (khớp với Terraform)
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
 
