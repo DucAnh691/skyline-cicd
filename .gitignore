@@ -1,24 +1,15 @@
-# Terraform
-.terraform/
+# Terraform local state (Nguy hiểm nếu push lên git)
 *.tfstate
-*.tfstate.backup
-*.tfvars
-.terraform.lock.hcl
+*.tfstate.*
 
-# Java / Maven
-target/
-*.jar
-*.war
-*.ear
-*.class
-.mvn/
-mvnw
-mvnw.cmd
+# Terraform configuration directory
+.terraform/
 
-# IDE
-.idea/
-.vscode/
-*.iml
+# Sensitive vars files (Tùy chọn: Nếu file tfvars chứa mật khẩu thì bỏ comment dòng dưới)
+# *.tfvars
 
-# Logs
-*.log
+# SSH Keys (Nguy hiểm)
+*.pem
+
+# Mac/Linux system files
+.DS_Store
