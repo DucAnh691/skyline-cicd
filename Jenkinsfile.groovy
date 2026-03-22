@@ -55,10 +55,10 @@ pipeline {
                         
                         // Thay thế placeholder IMAGE_PLACEHOLDER bằng ảnh thật trên ECR
                         def image = "${REGISTRY_URL}/${service}:latest"
-                        sh "sed -i 's|IMAGE_PLACEHOLDER|${image}|g' k8s/${service}.yaml"
+                        sh "sed -i 's|IMAGE_PLACEHOLDER|${image}|g' ./${service}.yaml"
                         
                         // Apply Manifest
-                        sh "kubectl apply -f k8s/${service}.yaml"
+                        sh "kubectl apply -f ./${service}.yaml"
                         
                         // Restart deployment để đảm bảo Pod pull image mới nhất (vì dùng tag latest)
                         sh "kubectl rollout restart deployment/${service}"
