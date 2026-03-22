@@ -47,11 +47,24 @@ pipeline {
                 script {
                     // 1. Cập nhật kubeconfig để lấy quyền truy cập Cluster
                     sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}"
+
+                    // 2. Cài đặt / Cấu hình Istio (Idempotent - Chạy nhiều lần không sao)
+                    echo "Setting up Istio..."
+                    // Thêm Repo Istio nếu chưa có
+                    sh "helm repo add istio https://istio-release.storage.googleapis.com/charts || true"
+                    sh "helm repo update"
+                    // Cài đặt Istio Base, Istiod và Ingress Gateway
+                    sh "helm upgrade --install istio-base istio/base -n istio-system --create-namespace --wait"
+                    sh "helm upgrade --install istiod istio/istiod -n istio-system --wait"
+                    sh "helm upgrade --install istio-ingress istio/gateway -n istio-system --wait"
+
+                    // Bật tính năng tự động tiêm Sidecar cho namespace mặc định
+                    sh "kubectl label namespace default istio-injection=enabled --overwrite"
                     
                     // DEBUG: Liệt kê file để kiểm tra đường dẫn thực tế
                     sh "ls -la *.yaml"
 
-                    // 2. Deploy từng service
+                    // 3. Deploy từng service
                     def services = ['user-service', 'order-service', 'payment-service']
                     for (service in services) {
                         echo "Deploying ${service}..."

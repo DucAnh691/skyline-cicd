@@ -41,8 +41,8 @@ resource "aws_eks_node_group" "main" {
     min_size     = 1
   }
 
-  # Khuyên dùng: t3.medium (2 vCPU, 4GB RAM) - Đủ chạy Lab, rẻ hơn m7i-flex.large
-  # Nếu muốn mạnh hơn có thể dùng: ["m7i-flex.large"] (2 vCPU, 8GB RAM)
+  # ISTIO REQUIREMENT: Dùng m7i-flex.large (8GB RAM) để đủ bộ nhớ cho Sidecar Proxies
+  # c7i-flex.large chỉ có 4GB RAM, rất dễ bị crash khi chạy Istio
   instance_types = ["c7i-flex.large"]
 
   remote_access {
