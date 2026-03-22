@@ -63,6 +63,22 @@ pipeline {
                     
                     // DEBUG: Liệt kê file để kiểm tra đường dẫn thực tế
                     sh "ls -la *.yaml"
+                    
+                    // Apply cấu hình Istio (VirtualService, DestinationRule, PeerAuthentication)
+                    sh "kubectl apply -f istio-config.yaml"
+
+                    // --- BƯỚC 13: Cài đặt Giám sát (Prometheus & Grafana) ---
+                    echo "Installing Monitoring Stack..."
+                    sh "helm repo add prometheus-community https://prometheus-community.github.io/helm-charts"
+                    sh "helm repo add grafana https://grafana.github.io/helm-charts"
+                    sh "helm repo update"
+                    
+                    // Cài Prometheus (Namespace monitoring)
+                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --wait"
+                    
+                    // Cài Grafana
+                    // Lưu ý: set adminPassword để dễ đăng nhập
+                    sh "helm upgrade --install grafana grafana/grafana --namespace monitoring --set adminPassword='admin' --wait"
 
                     // 3. Deploy từng service
                     def services = ['user-service', 'order-service', 'payment-service']
@@ -76,6 +92,25 @@ pipeline {
                         // Restart deployment để đảm bảo Pod pull image mới nhất (vì dùng tag latest)
                         sh "kubectl rollout restart deployment/${service}"
                     }
+
+                    // --- BƯỚC 11 & 12: Blue-Green & Canary Deployment ---
+                    echo "Deploying User Service GREEN (v2)..."
+                    def greenImage = "${REGISTRY_URL}/user-service:latest" // Demo dùng chung ảnh latest
+                    // Deploy Green Version
+                    sh "sed 's|IMAGE_PLACEHOLDER|${greenImage}|g' user-service-green.yaml | kubectl apply -f -"
+                    
+                    echo "Applying Canary Traffic Split (90% v1, 10% v2)..."
+                    sh "kubectl apply -f istio-canary.yaml"
+
+                    // --- BƯỚC 14 & 15: Logging & Alerting ---
+                    echo "Setting up Fluentd & Alertmanager..."
+                    // Apply Fluentd
+                    sh "kubectl apply -f fluentd.yaml"
+                    
+                    // Apply Alertmanager Config (Yêu cầu namespace monitoring đã có từ bước trên)
+                    sh "kubectl apply -f alertmanager-config.yaml"
+                    
+                    echo "All deployments & configurations completed!"
                 }
             }
         }
