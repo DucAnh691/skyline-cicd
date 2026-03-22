@@ -11,36 +11,42 @@ module "vpc" {
 
 #2. Tầng Bảo mật (Sẽ mở khóa sau khi xong module IAM)
 module "iam" {
-  source = "../../modules/iam"
-  prefix = var.project_name
+  source       = "../../modules/iam"
+  project_name = var.project_name
 }
 
-#3. Module Cơ sở dữ liệu (RDS) - Đã build xong
-module "rds" {
-  source             = "../../modules/rds"
-  project_name       = var.project_name
-  vpc_id             = module.vpc.vpc_id
-  vpc_cidr           = "10.0.0.0/16"
-  private_subnet_ids = module.vpc.private_subnet_ids
-  db_password        = var.db_password
-}
+# #3. Module Cơ sở dữ liệu (RDS) - Đã build xong
+# module "rds" {
+#   source             = "../../modules/rds"
+#   project_name       = var.project_name
+#   vpc_id             = module.vpc.vpc_id
+#   vpc_cidr           = "10.0.0.0/16"
+#   private_subnet_ids = module.vpc.private_subnet_ids
+#   db_password        = var.db_password
+# }
 
 # 4. Module Trùm cuối (EKS) - THÊM MỚI TẠI ĐÂY
 module "eks" {
-  source             = "../../modules/eks"
-  cluster_name       = "${var.project_name}-eks"
-  vpc_id             = module.vpc.vpc_id
-  
+  source       = "../../modules/eks"
+  cluster_name = "${var.project_name}-eks"
+  vpc_id       = module.vpc.vpc_id
+
   # Truyền danh sách Subnet từ module VPC
   public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.private_subnet_ids
-  
+
   # Truyền ARN của các Role từ module IAM
-  cluster_role_arn   = module.iam.eks_cluster_role_arn
-  node_role_arn      = module.iam.eks_node_role_arn
+  cluster_role_arn = module.iam.eks_cluster_role_arn
+  node_role_arn    = module.iam.eks_node_role_arn
+
+  # Allow the Jenkins Agent SG to access the EKS Control Plane
+  additional_security_group_ids_for_cluster = [module.jenkins.jenkins_agent_security_group_id]
+
+  # Cấp quyền Admin EKS cho Jenkins Agent Role
+  jenkins_role_arn = module.jenkins.jenkins_role_arn
 
   # SSH Key nếu bạn muốn vào debug Node (Tùy chọn)
-  ssh_key_name     = "web-key"
+  ssh_key_name = "web-key"
 
   # Đảm bảo các thành phần nền tảng phải xong trước
   depends_on = [

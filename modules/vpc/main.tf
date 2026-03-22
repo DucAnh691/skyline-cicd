@@ -17,7 +17,7 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
   tags = { 
-    Name = "${var.project_name}-public-${count.index + 1}"
+    Name = "${var.project_name}-public-subnet-${count.index + 1}"
     "kubernetes.io/role/elb" = "1" # Tag bắt buộc cho EKS Load Balancer
   }
 }
@@ -28,7 +28,7 @@ resource "aws_subnet" "private" {
   cidr_block        = var.private_subnets[count.index]
   availability_zone = var.availability_zones[count.index]
   tags = { 
-    Name = "${var.project_name}-private-${count.index + 1}" 
+    Name = "${var.project_name}-private-subnet-${count.index + 1}" 
     "kubernetes.io/role/internal-elb" = "1" # Tag bắt buộc cho EKS Internal LB
   }
 }

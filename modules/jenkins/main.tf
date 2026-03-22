@@ -34,6 +34,22 @@ resource "aws_iam_role_policy_attachment" "eks_admin" {
   role       = aws_iam_role.jenkins_role.name
 }
 
+# Policy: Cho phép Jenkins Agent lấy thông tin cluster để update kubeconfig
+# Đây là quyền bị thiếu trong lỗi "AccessDeniedException"
+resource "aws_iam_role_policy" "eks_describe" {
+  name = "${var.project_name}-eks-describe-policy"
+  role = aws_iam_role.jenkins_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action   = ["eks:DescribeCluster"]
+      Effect   = "Allow"
+      Resource = "*" # Cho phép describe tất cả cluster, có thể giới hạn lại nếu cần
+    }]
+  })
+}
+
 # Instance Profile để gắn Role vào EC2
 resource "aws_iam_instance_profile" "jenkins_profile" {
   name = "${var.project_name}-jenkins-profile"
@@ -114,7 +130,9 @@ data "aws_ami" "al2023" {
 
 # Sử dụng EC2 Instance thông thường thay vì ASG
 resource "aws_instance" "jenkins_master" {
-  ami                    = data.aws_ami.al2023.id
+  # Cố định AMI ID để không bị thay thế khi có phiên bản mới.
+  # ID này được lấy từ terraform plan của bạn.
+  ami                    = "ami-011d19742f14ff9b8"
   instance_type          = "t3.small"
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[0] # Đặt tại subnet public đầu tiên
@@ -174,6 +192,15 @@ resource "aws_launch_template" "jenkins_agent_lt" {
     name = aws_iam_instance_profile.jenkins_profile.name
   }
 
+  # Tăng dung lượng ổ cứng lên 20GB để chứa Swap file và Docker Images
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
+
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.jenkins_agent_sg.id]
@@ -183,7 +210,18 @@ resource "aws_launch_template" "jenkins_agent_lt" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               dnf update -y
-              hostnamectl set-hostname jenkins-agent
+              
+              # Lấy Instance ID và đặt Hostname động để dễ phân biệt trên Jenkins Dashboard
+              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+              INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+              hostnamectl set-hostname "jenkins-agent-$${INSTANCE_ID}"
+              
+              # Tạo Swap 3GB để hỗ trợ RAM cho t3.small (Tránh lỗi OOM khi Master connect)
+              dd if=/dev/zero of=/swapfile bs=1M count=3072
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
               
               # 1. Cài đặt Java 17 (Yêu cầu bắt buộc để Master kết nối qua SSH)
               dnf install java-17-amazon-corretto-devel -y
@@ -207,6 +245,9 @@ resource "aws_launch_template" "jenkins_agent_lt" {
               curl -LO https://dl.k8s.io/release/v1.32.0/bin/linux/amd64/kubectl
               chmod +x kubectl
               mv kubectl /usr/local/bin/
+
+              # 6. Cài đặt Helm (Quản lý package Kubernetes)
+              curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
               EOF
   )
 
@@ -223,8 +264,22 @@ resource "aws_autoscaling_group" "jenkins_agent_asg" {
   desired_capacity    = 2
   vpc_zone_identifier = var.public_subnet_ids
 
-  launch_template {
-    id      = aws_launch_template.jenkins_agent_lt.id
-    version = "$Latest"
+  # TỐI ƯU HÓA: Sử dụng Mixed Instances Policy để chạy Spot Instances (Tiết kiệm chi phí)
+  mixed_instances_policy {
+    instances_distribution {
+      on_demand_base_capacity                  = 0 # 100% dùng Spot
+      on_demand_percentage_above_base_capacity = 0
+      spot_allocation_strategy                 = "price-capacity-optimized"
+    }
+
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.jenkins_agent_lt.id
+        version            = "$Latest"
+      }
+      # Nếu t3.small hết Spot, tự động chuyển sang t3.medium
+      override { instance_type = "t3.small" }
+      override { instance_type = "t3.medium" }
+    }
   }
 }

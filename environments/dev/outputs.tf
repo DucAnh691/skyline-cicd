@@ -13,5 +13,5 @@ output "ecr_repository_urls" {
 
 output "aws_region" {
   description = "Region hiện tại (Dùng cho lệnh docker login)"
-  value       = "ap-southeast-1" 
+  value       = "ap-southeast-1"
 }

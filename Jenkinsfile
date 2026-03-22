@@ -8,6 +8,7 @@ pipeline {
         // Cấu hình thông tin AWS
         AWS_ACCOUNT_ID = '427077356037'
         AWS_REGION     = 'ap-southeast-1'
+        CLUSTER_NAME   = 'skyline-cicd-eks' // Tên EKS Cluster (khớp với Terraform)
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
 
@@ -37,6 +38,31 @@ pipeline {
                             buildService('payment-service')
                         }
                     )
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    // 1. Cập nhật kubeconfig để lấy quyền truy cập Cluster
+                    sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME}"
+
+                    // 2. Deploy từng service
+                    def services = ['user-service', 'order-service', 'payment-service']
+                    for (service in services) {
+                        echo "Deploying ${service}..."
+                        
+                        // Thay thế placeholder IMAGE_PLACEHOLDER bằng ảnh thật trên ECR
+                        def image = "${REGISTRY_URL}/${service}:latest"
+                        sh "sed -i 's|IMAGE_PLACEHOLDER|${image}|g' k8s/${service}.yaml"
+                        
+                        // Apply Manifest
+                        sh "kubectl apply -f k8s/${service}.yaml"
+                        
+                        // Restart deployment để đảm bảo Pod pull image mới nhất (vì dùng tag latest)
+                        sh "kubectl rollout restart deployment/${service}"
+                    }
                 }
             }
         }
