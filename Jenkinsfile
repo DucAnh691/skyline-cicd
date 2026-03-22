@@ -78,11 +78,12 @@ pipeline {
                     sh "helm repo update"
                     
                     // Cài Prometheus (Namespace monitoring)
-                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --wait"
+                    // Tắt Persistent Volume (PV) để tránh lỗi timeout do thiếu EBS CSI Driver (StorageClass)
+                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.persistentVolume.enabled=false --wait --timeout 10m"
                     
                     // Cài Grafana
-                    // Lưu ý: set adminPassword để dễ đăng nhập
-                    sh "helm upgrade --install grafana grafana/grafana --namespace monitoring --set adminPassword='admin' --wait"
+                    // Lưu ý: set adminPassword để dễ đăng nhập, tắt persistence
+                    sh "helm upgrade --install grafana grafana/grafana --namespace monitoring --set adminPassword='admin' --set persistence.enabled=false --wait --timeout 10m"
 
                     // 3. Deploy từng service
                     def services = ['user-service', 'order-service', 'payment-service']
