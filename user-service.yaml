@@ -30,5 +30,158 @@ spec:
   ports:
     - protocol: TCP
       port: 80       # Port nội bộ trong Cluster
-      targetPort: 8081 # Port của Container
-  type: LoadBalancer
+      targetPort: 8081 # Port của ContainerapiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: user-service-green
+      spec:
+        replicas: 1 # Để 1 replica cho nhẹ lab
+        selector:
+          matchLabels:
+            app: user-service
+            version: v2 # Green version
+        template:
+          metadata:
+            labels:
+              app: user-service
+              version: v2
+          spapiVersion: networking.istio.io/v1alpha3
+          kind: VirtualService
+          metadata:
+            name: user-service
+          spec:
+            hosts:
+              - user-service
+            http:
+              - route:
+                  - destination:
+                      host: user-service
+                      subset: v1
+                    weight: 90
+                  - destination:
+                      host: user-service
+                      subset: v2
+                    weight: 10
+          ---
+          apiVersion: networking.istio.io/v1alpha3
+          kind: DestinationRule
+          metadata:
+            name: user-service
+          spec:
+            host: user-service
+            subsets:
+              - name: v1
+                labels:
+                  version: v1
+              - name: v2
+                labelsapiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: fluentd
+                  namespace: kube-system
+                ---
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: fluentd
+                rules:
+                - apiGroups:
+                  - ""
+                  resources:
+                  - pods
+                  - namespaces
+                  verbs:
+                  - get
+                  - list
+                  - watch
+                ---
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: fluentd
+                roleRef:
+                  kind: ClusterRole
+                  name: fluentd
+                  apiGroup: rbac.authorization.k8s.io
+                subjects:
+                - kind: ServiceAccount
+                  name: fluentd
+                  namespace: kube-system
+                ---
+                apiVersion: apps/v1
+                kind: DaemonSet
+                metadata:
+                  name: fluentd
+                  namespace: kube-system
+                  labels:
+                    app: fluentd
+                spec:
+                  selector:
+                    matchLabels:
+                      app: fluentd
+                  template:
+                    metadata:
+                      labels:
+                        app: fluentd
+                    spec:
+                      serviceAccountName: fluentd
+                      tolerations:
+                      - key: node-role.kubernetes.io/master
+                        effect: NoSchedule
+                      containers:
+                      - name: fluentd
+                        image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7-1
+                        env:
+                          - name: FLUENT_ELASTICSEARCH_HOST
+                            value: "elasticsearch-master" # Giả sử bạn cài ES bằng Helm với tên này
+                          - name: FLUENT_ELASTICSEARCH_PORT
+                            value: "9200"
+                          - name: FLUENT_ELASTICSEARCH_SCHEME
+                            value: "http"
+                        resources:
+                          limits:
+                            memory: 200Mi
+                          requests:
+                            cpu: 100m
+                            memory: 200Mi
+                        volumeMounts:
+                        - name: varlog
+                          mountPath: /var/log
+                        - name: varlibdockercontainers
+                          mountPath: /var/lib/docker/containers
+                          readOnly: true
+                      volumes:
+                      - name: varlog
+                        hostPath:
+                          path: /var/log
+                      - name: varlibdockercontainers
+                        hostPath:
+                          path: /var/lib/docker/containers
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: alertmanager-config
+                  namespace: monitoring
+                data:
+                  alertmanager.yml: |
+                    global:
+                      smtp_smarthost: 'smtp.gmail.com:587'
+                      smtp_from: 'alertmanager@example.com'
+                      smtp_auth_username: 'example@gmail.com'
+                      smtp_auth_password: 'password'
+                    route:
+                      receiver: 'email-alert'
+                    receivers:
+                    - name: 'email-alert'
+                      email_configs:
+                      - to: 'your-email@example.com'
+                :
+                  version: v2
+          ec:
+            containers:
+              - name: user-service
+                image: IMAGE_PLACEHOLDER # Jenkins sẽ thay thế
+                imagePullPolicy: Always
+                ports:
+                  - containerPort: 8081
+      
