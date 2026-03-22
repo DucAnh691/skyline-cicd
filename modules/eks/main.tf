@@ -43,7 +43,7 @@ resource "aws_eks_node_group" "main" {
 
   # ISTIO REQUIREMENT: Dùng m7i-flex.large (8GB RAM) để đủ bộ nhớ cho Sidecar Proxies
   # c7i-flex.large chỉ có 4GB RAM, rất dễ bị crash khi chạy Istio
-  instance_types = ["c7i-flex.large"]
+  instance_types = ["m7i-flex.large"]
 
   remote_access {
     ec2_ssh_key = var.ssh_key_name

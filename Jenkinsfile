@@ -4,6 +4,10 @@ pipeline {
         label 'Agent-1'
     }
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         // Cấu hình thông tin AWS
         AWS_ACCOUNT_ID = '427077356037'
