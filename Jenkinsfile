@@ -80,12 +80,12 @@ pipeline {
                     // Cài Prometheus (Namespace monitoring)
                     // FIX: Uninstall hoàn toàn bản cài đặt cũ để đảm bảo không còn StatefulSet nào giữ cấu hình Storage cũ
                     // Đây là cách duy nhất xử lý triệt để lỗi "Pending" do xung đột cấu hình ổ cứng
-                    sh "helm uninstall prometheus -n monitoring || true"
-                    sh "kubectl delete pvc --all -n monitoring --ignore-not-found"
+                    // sh "helm uninstall prometheus -n monitoring || true"
+                    // sh "kubectl delete pvc --all -n monitoring --ignore-not-found"
                     
-                    // Cài đặt mới: Tắt hoàn toàn Alertmanager (alertmanager.enabled=false) để tránh lỗi Pending
-                    // Vẫn giữ server.persistentVolume.enabled=false để không đòi ổ cứng cho Prometheus Server
-                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.enabled=false --set server.resources.requests.cpu=200m --wait --timeout 10m"
+                    // // Cài đặt mới: Tắt hoàn toàn Alertmanager (alertmanager.enabled=false) để tránh lỗi Pending
+                    // // Vẫn giữ server.persistentVolume.enabled=false để không đòi ổ cứng cho Prometheus Server
+                    // sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.enabled=false --set server.resources.requests.cpu=200m --wait --timeout 10m"
                     
                     // Cài Grafana
                     // Lưu ý: set adminPassword để dễ đăng nhập, tắt persistence

@@ -78,11 +78,18 @@ pipeline {
                     sh "helm repo update"
                     
                     // Cài Prometheus (Namespace monitoring)
-                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --wait"
+                    // FIX: Uninstall hoàn toàn bản cài đặt cũ để đảm bảo không còn StatefulSet nào giữ cấu hình Storage cũ
+                    // Đây là cách duy nhất xử lý triệt để lỗi "Pending" do xung đột cấu hình ổ cứng
+                    sh "helm uninstall prometheus -n monitoring || true"
+                    sh "kubectl delete pvc --all -n monitoring --ignore-not-found"
+                    
+                    // Cài đặt mới: Tắt hoàn toàn Alertmanager (alertmanager.enabled=false) để tránh lỗi Pending
+                    // Vẫn giữ server.persistentVolume.enabled=false để không đòi ổ cứng cho Prometheus Server
+                    sh "helm upgrade --install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring --set server.persistentVolume.enabled=false --set alertmanager.enabled=false --set server.resources.requests.cpu=200m --wait --timeout 10m"
                     
                     // Cài Grafana
-                    // Lưu ý: set adminPassword để dễ đăng nhập
-                    sh "helm upgrade --install grafana grafana/grafana --namespace monitoring --set adminPassword='admin' --wait"
+                    // Lưu ý: set adminPassword để dễ đăng nhập, tắt persistence
+                    sh "helm upgrade --install grafana grafana/grafana --namespace monitoring --set adminPassword='admin' --set persistence.enabled=false --wait --timeout 10m"
 
                     // 3. Deploy từng service
                     def services = ['user-service', 'order-service', 'payment-service']
@@ -107,12 +114,9 @@ pipeline {
                     sh "kubectl apply -f istio-canary.yaml"
 
                     // --- BƯỚC 14 & 15: Logging & Alerting ---
-                    echo "Setting up Fluentd & Alertmanager..."
+                    echo "Setting up Fluentd..."
                     // Apply Fluentd
                     sh "kubectl apply -f fluentd.yaml"
-                    
-                    // Apply Alertmanager Config (Yêu cầu namespace monitoring đã có từ bước trên)
-                    sh "kubectl apply -f alertmanager-config.yaml"
                     
                     echo "All deployments & configurations completed!"
                 }

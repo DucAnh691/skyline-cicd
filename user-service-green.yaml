@@ -1,17 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: user-service-green
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: user-service
+      version: v2
   template:
     metadata:
       labels:
         app: user-service
-        version: v1
+        version: v2
     spec:
       containers:
         - name: user-service
@@ -19,16 +20,3 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: user-service
-spec:
-  selector:
-    app: user-service
-  ports:
-    - protocol: TCP
-      port: 80       # Port nội bộ trong Cluster
-      targetPort: 8081 # Port của Container
-  type: LoadBalancer
